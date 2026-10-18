@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "instabox-py"
+version = "0.1.0"
+description = "Python SDK for InstaBox: create sandboxes on Firecracker dev machines, run commands, move files, pause, resume, snapshot and automate GUI desktops."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Owais Iqbal", email = "iqbalowais35@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Distributed Computing",
+]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.urls]
+Homepage = "https://instabox.sh"
+Repository = "https://github.com/owaisiqbal/instabox-py"
+Issues = "https://github.com/owaisiqbal/instabox-py/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["instabox*"]
+
+[tool.setuptools.package-data]
+instabox = ["py.typed"]
