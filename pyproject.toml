@@ -30,8 +30,8 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://instabox.sh"
-Repository = "https://github.com/owaisiqbal/instabox-py"
-Issues = "https://github.com/owaisiqbal/instabox-py/issues"
+Repository = "https://github.com/owais-star/instabox-py"
+Issues = "https://github.com/owais-star/instabox-py/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

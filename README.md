@@ -16,7 +16,7 @@ pip install instabox-py
 
 *Or install from source:*
 ```bash
-git clone https://github.com/owaisiqbal/instabox-py.git
+git clone https://github.com/owais-star/instabox-py.git
 cd instabox-py
 pip install -e .
 ```
