@@ -21,6 +21,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 .env
+.env.*
+*.env
+*.pem
+*.key
 .venv
 env/
 venv/
