@@ -47,6 +47,18 @@ class InstaboxTimeoutError(InstaboxError):
     pass
 
 
+class InvalidStateTransitionError(InstaboxError):
+    """Raised when an action is attempted that violates the sandbox state machine."""
+
+    def __init__(self, current_state: str, action: str, valid_actions: Optional[list] = None) -> None:
+        valid_str = f" Valid actions: {valid_actions}" if valid_actions else ""
+        msg = f"Cannot perform action {action!r} on sandbox in state {current_state!r}.{valid_str}"
+        super().__init__(msg, code="invalid_state_transition")
+        self.current_state = current_state
+        self.action = action
+        self.valid_actions = valid_actions or []
+
+
 class CommandExitError(InstaboxError):
     """Raised when an executed command terminates with a non-zero exit status."""
 

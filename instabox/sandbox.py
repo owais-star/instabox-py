@@ -12,12 +12,13 @@ from typing import Any, Dict, List, Optional, Union
 
 from .commands import Commands
 from .desktop import Desktop
-from .errors import InstaboxError, InstaboxTimeoutError
+from .errors import InstaboxError, InstaboxTimeoutError, InvalidStateTransitionError
 from .files import Files
 from .http import HttpClient
 from .models import (
     MetricSample,
     SandboxInfo,
+    SandboxState,
     SSHCredentials,
     UsageReport,
 )
@@ -242,10 +243,18 @@ class Sandbox:
 
     def is_running(self) -> bool:
         """Checks if the sandbox is actively running."""
-        return self.get_info().state == "running"
+        return self.get_info().is_running
 
     def pause(self) -> None:
         """Suspends the sandbox, preserving RAM memory and active processes."""
+        self.settle()
+        state = SandboxState.from_str(self.machine.get("state"))
+        if state == SandboxState.SUSPENDED:
+            return  # Idempotent no-op
+        if state in (SandboxState.TERMINATING, SandboxState.TERMINATED):
+            raise InvalidStateTransitionError(state.value, "pause", [])
+        if state == SandboxState.STOPPED:
+            raise InvalidStateTransitionError(state.value, "pause", ["wake", "kill"])
         self._mutate("POST", "suspend")
 
     def resume(self) -> None:
@@ -254,17 +263,37 @@ class Sandbox:
         self.wake()
 
     def wake(self) -> None:
-        """Wakes machine based on current cached state."""
-        state = self.machine.get("state")
-        if state == "suspended":
+        """Wakes machine based on current state with state machine guard."""
+        self.settle(refresh=False)
+        state = SandboxState.from_str(self.machine.get("state"))
+        if state == SandboxState.RUNNING:
+            return  # Idempotent no-op
+        if state == SandboxState.PROVISIONING:
+            self.settle(refresh=True)
+            return
+        if state == SandboxState.SUSPENDED:
             self._mutate("POST", "resume")
-        elif state == "stopped":
+        elif state == SandboxState.STOPPED:
             self._mutate("POST", "start")
+        elif state in (SandboxState.TERMINATING, SandboxState.TERMINATED):
+            raise InvalidStateTransitionError(state.value, "wake", [])
+        else:
+            self.settle(refresh=True)
+            refreshed = SandboxState.from_str(self.machine.get("state"))
+            if refreshed == SandboxState.SUSPENDED:
+                self._mutate("POST", "resume")
+            elif refreshed == SandboxState.STOPPED:
+                self._mutate("POST", "start")
 
     def stop(self) -> None:
         """Shuts down the guest OS cleanly while keeping persistent /data disk."""
         self.settle()
-        if self.machine.get("state") == "suspended":
+        state = SandboxState.from_str(self.machine.get("state"))
+        if state == SandboxState.STOPPED:
+            return  # Idempotent no-op
+        if state in (SandboxState.TERMINATING, SandboxState.TERMINATED):
+            raise InvalidStateTransitionError(state.value, "stop", [])
+        if state == SandboxState.SUSPENDED:
             self._mutate("POST", "start")
         self._mutate("POST", "stop")
 

@@ -4,7 +4,29 @@ InstaBox SDK Data Models.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
+
+
+class SandboxState(str, Enum):
+    """Explicit lifecycle states for an InstaBox Firecracker microVM."""
+    PROVISIONING = "provisioning"
+    RUNNING = "running"
+    SUSPENDED = "suspended"
+    STOPPED = "stopped"
+    TERMINATING = "terminating"
+    TERMINATED = "terminated"
+    ERROR = "error"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def from_str(cls, val: Optional[str]) -> SandboxState:
+        if not val:
+            return cls.UNKNOWN
+        try:
+            return cls(str(val).lower())
+        except ValueError:
+            return cls.UNKNOWN
 
 
 @dataclass
@@ -49,6 +71,36 @@ class SandboxInfo:
     on_timeout: str = "pause"
     auto_suspend_ms: Optional[int] = None
     machine: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def sandbox_state(self) -> SandboxState:
+        """Returns typed SandboxState enum."""
+        return SandboxState.from_str(self.state)
+
+    @property
+    def is_running(self) -> bool:
+        """True if the sandbox is actively running and ready to accept commands."""
+        return self.sandbox_state == SandboxState.RUNNING
+
+    @property
+    def is_terminal(self) -> bool:
+        """True if the sandbox has reached a non-recoverable terminal state."""
+        return self.sandbox_state in (SandboxState.TERMINATING, SandboxState.TERMINATED, SandboxState.ERROR)
+
+    @property
+    def valid_actions(self) -> List[str]:
+        """Returns legal next actions for this state (AX / Agent Experience optimization)."""
+        mapping = {
+            SandboxState.PROVISIONING: ["settle", "kill"],
+            SandboxState.RUNNING: ["pause", "stop", "kill", "exec"],
+            SandboxState.SUSPENDED: ["resume", "wake", "stop", "kill"],
+            SandboxState.STOPPED: ["wake", "resume", "kill"],
+            SandboxState.TERMINATING: ["settle"],
+            SandboxState.TERMINATED: [],
+            SandboxState.ERROR: ["kill"],
+            SandboxState.UNKNOWN: ["settle", "kill"],
+        }
+        return mapping.get(self.sandbox_state, [])
 
 
 @dataclass

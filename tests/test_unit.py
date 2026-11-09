@@ -8,9 +8,10 @@ from instabox.errors import (
     InstaboxError,
     InstaboxQuotaError,
     InstaboxTimeoutError,
+    InvalidStateTransitionError,
 )
 from instabox.http import _error_from_response
-from instabox.models import CommandResult, FileEntry, SandboxInfo
+from instabox.models import CommandResult, FileEntry, SandboxInfo, SandboxState
 
 
 class TestInstaboxErrors(unittest.TestCase):
@@ -28,6 +29,12 @@ class TestInstaboxErrors(unittest.TestCase):
 
         err500 = _error_from_response(500, {"error": {"code": "server_error", "message": "Crash"}}, "fallback")
         self.assertIsInstance(err500, InstaboxError)
+
+    def test_invalid_state_transition_error(self):
+        err = InvalidStateTransitionError("terminated", "wake", valid_actions=[])
+        self.assertEqual(err.code, "invalid_state_transition")
+        self.assertIn("terminated", str(err))
+        self.assertEqual(err.valid_actions, [])
 
     def test_command_exit_error(self):
         err = CommandExitError(127, stdout="", stderr="command not found: foobar\n")
@@ -47,6 +54,24 @@ class TestInstaboxModels(unittest.TestCase):
         entry = FileEntry(name="main.rs", path="/data/home/main.rs", type="file")
         self.assertEqual(entry.name, "main.rs")
         self.assertEqual(entry.type, "file")
+
+    def test_sandbox_state_machine_model(self):
+        info_running = SandboxInfo(sandbox_id="sbx-123", name="test", state="running")
+        self.assertEqual(info_running.sandbox_state, SandboxState.RUNNING)
+        self.assertTrue(info_running.is_running)
+        self.assertFalse(info_running.is_terminal)
+        self.assertIn("pause", info_running.valid_actions)
+        self.assertIn("exec", info_running.valid_actions)
+
+        info_term = SandboxInfo(sandbox_id="sbx-456", name="test", state="terminated")
+        self.assertEqual(info_term.sandbox_state, SandboxState.TERMINATED)
+        self.assertFalse(info_term.is_running)
+        self.assertTrue(info_term.is_terminal)
+        self.assertEqual(info_term.valid_actions, [])
+
+        # Robust string normalization
+        self.assertEqual(SandboxState.from_str("SUSPENDED"), SandboxState.SUSPENDED)
+        self.assertEqual(SandboxState.from_str("some_unknown_val"), SandboxState.UNKNOWN)
 
 
 if __name__ == "__main__":
